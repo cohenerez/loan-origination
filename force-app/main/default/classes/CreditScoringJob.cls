@@ -105,9 +105,14 @@ public inherited sharing class CreditScoringJob implements Queueable, Database.A
         }
 
         logFailures('Credit_Check__c insert', Database.insert(checks, false));
-        logFailures('Loan_Application__c update', Database.update(updates, false));
-        if (!approvals.isEmpty()) {
-            logFailures('Loan_Application__c auto-approval', Database.update(approvals, false));
+        LoanApplicationTriggerHandler.allowCreditResultUpdates(true);
+        try {
+            logFailures('Loan_Application__c update', Database.update(updates, false));
+            if (!approvals.isEmpty()) {
+                logFailures('Loan_Application__c auto-approval', Database.update(approvals, false));
+            }
+        } finally {
+            LoanApplicationTriggerHandler.allowCreditResultUpdates(false);
         }
     }
 

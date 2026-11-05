@@ -12,6 +12,9 @@ public inherited sharing class LoanStatusMachine {
     /** Statuses a new application may be created in (Submitted allows external upserts). */
     public static final Set<String> INITIAL_STATES = new Set<String>{ DRAFT, SUBMITTED };
 
+    /** Statuses in which the loan details (amount, term, income, purpose, applicant) may be edited. */
+    public static final Set<String> EDITABLE_STATES = new Set<String>{ DRAFT, SUBMITTED };
+
     /** Statuses that represent a credit decision. */
     public static final Set<String> DECISION_STATES = new Set<String>{ APPROVED, REJECTED };
 
@@ -20,7 +23,8 @@ public inherited sharing class LoanStatusMachine {
         SUBMITTED        => new Set<String>{ SCORING, DRAFT },
         // Scoring can fall back to Submitted when the scoring service fails, so it can be retried
         SCORING          => new Set<String>{ PENDING_APPROVAL, REJECTED, SUBMITTED },
-        PENDING_APPROVAL => new Set<String>{ APPROVED, REJECTED },
+        // Pending_Approval can be returned for changes, e.g. when the customer asks for a different amount
+        PENDING_APPROVAL => new Set<String>{ APPROVED, REJECTED, SUBMITTED },
         APPROVED         => new Set<String>{ FUNDED },
         REJECTED         => new Set<String>(),
         FUNDED           => new Set<String>()

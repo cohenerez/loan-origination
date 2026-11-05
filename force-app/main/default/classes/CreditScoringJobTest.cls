@@ -50,7 +50,7 @@ public with sharing class CreditScoringJobTest {
     private static CreditScoringCalloutMock mockService() {
         useTestThresholds();
         CreditScoringCalloutMock mock = new CreditScoringCalloutMock();
-        Test.setMock(HttpCalloutMock.class, mock);
+        Test.setMock(System.HttpCalloutMock.class, mock);
         return mock;
     }
 
