@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Credit Committee</label>
+    <protected>false</protected>
+    <values><field>Max_Amount__c</field><value xsi:type="xsd:double">2000000</value></values>
+    <values><field>Min_Score__c</field><value xsi:type="xsd:double">580</value></values>
+    <values><field>Approver_Level__c</field><value xsi:type="xsd:string">Credit_Committee</value></values>
+    <values><field>Sort_Order__c</field><value xsi:type="xsd:double">3</value></values>
+</CustomMetadata>

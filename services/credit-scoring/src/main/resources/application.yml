@@ -1,0 +1,36 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: credit-scoring
+  mvc:
+    problemdetails:
+      enabled: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/scoring}
+    username: ${DB_USERNAME:scoring}
+    password: ${DB_PASSWORD:scoring}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate   # Flyway owns the schema; Hibernate only checks the mapping matches
+  flyway:
+    enabled: true
+
+scoring:
+  api-key: ${SCORING_API_KEY:}   # required; the app refuses to start when empty
+  simulation:
+    enabled: ${SCORING_SIMULATION_ENABLED:false}
+    slow-delay: 15s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

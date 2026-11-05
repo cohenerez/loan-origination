@@ -1,0 +1,68 @@
+# =========================================================
+# loan-origination monorepo
+#   force-app/                 Salesforce DX (Apex, LWC, metadata)
+#   services/credit-scoring/   Spring Boot (Java 21, Maven)
+# =========================================================
+
+# ---------- Salesforce DX / CLI ----------
+.sf/
+.sfdx/
+.localdevserver/
+deploy-options.json
+**/lwc/jsconfig.json
+**/aura/jsconfig.json
+coverage/
+tests/apex/
+*.log
+
+# Node tooling from the SFDX template (ESLint, Prettier, Jest, Husky)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+.npm/
+
+# ---------- Illuminated Cloud 2 ----------
+# Offline symbol table and generated caches; each developer regenerates them
+IlluminatedCloud/
+.illuminatedCloud/
+
+# ---------- IntelliJ IDEA ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# ---------- Java / Maven ----------
+target/
+*.class
+hs_err_pid*
+replay_pid*
+.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+dependency-reduced-pom.xml
+
+# ---------- Secrets and local config ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# ---------- OS ----------
+.DS_Store
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Added by Illuminated Cloud
+**/tsconfig*.json
+**/*.tsbuildinfo
+**/graphql.config.yml

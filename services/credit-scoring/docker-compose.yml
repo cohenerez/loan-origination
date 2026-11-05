@@ -1,0 +1,35 @@
+# Local development: `docker compose up -d postgres` for the database only,
+# or `SCORING_API_KEY=dev-key docker compose up --build` for database + service.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: scoring
+      POSTGRES_USER: scoring
+      POSTGRES_PASSWORD: scoring
+    ports:
+      - "127.0.0.1:5432:5432"   # localhost only, never exposed publicly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scoring -d scoring"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  credit-scoring:
+    build: .
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/scoring
+      DB_USERNAME: scoring
+      DB_PASSWORD: scoring
+      SCORING_API_KEY: ${SCORING_API_KEY:?Set SCORING_API_KEY}
+      SCORING_SIMULATION_ENABLED: ${SCORING_SIMULATION_ENABLED:-false}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
