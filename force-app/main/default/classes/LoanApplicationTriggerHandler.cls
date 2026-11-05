@@ -1,7 +1,8 @@
 /**
  * Trigger handler for Loan_Application__c.
  * Before: enforces the status state machine and stamps lifecycle dates.
- * After:  publishes LoanStatusChanged__e for every status change.
+ * After:  publishes LoanStatusChanged__e for every status change, and queues credit scoring
+ *         for applications that moved to Scoring.
  */
 public inherited sharing class LoanApplicationTriggerHandler {
 
@@ -16,8 +17,8 @@ public inherited sharing class LoanApplicationTriggerHandler {
     private final System.TriggerOperation operation;
 
     public LoanApplicationTriggerHandler(List<Loan_Application__c> newRecords,
-                                         Map<Id, Loan_Application__c> oldMap,
-                                         System.TriggerOperation operation) {
+            Map<Id, Loan_Application__c> oldMap,
+            System.TriggerOperation operation) {
         this.newRecords = newRecords;
         this.oldMap = oldMap;
         this.operation = operation;
@@ -39,6 +40,7 @@ public inherited sharing class LoanApplicationTriggerHandler {
             }
             when AFTER_UPDATE {
                 LoanEventPublisher.publishStatusChanges(newRecords, oldMap);
+                enqueueCreditScoring(newRecords, oldMap);
             }
         }
     }
@@ -50,7 +52,7 @@ public inherited sharing class LoanApplicationTriggerHandler {
             }
             if (!LoanStatusMachine.INITIAL_STATES.contains(loan.Status__c)) {
                 loan.addError(Loan_Application__c.Status__c,
-                    'A new application must start as Draft or Submitted.');
+                        'A new application must start as Draft or Submitted.');
                 continue;
             }
             stampDates(loan);
@@ -66,18 +68,36 @@ public inherited sharing class LoanApplicationTriggerHandler {
             if (!LoanStatusMachine.canTransition(oldStatus, loan.Status__c)) {
                 Set<String> allowed = LoanStatusMachine.allowedFrom(oldStatus);
                 loan.addError(Loan_Application__c.Status__c, String.format(
-                    'Cannot change status from {0} to {1}. Allowed: {2}.',
-                    new List<Object>{ oldStatus, loan.Status__c,
-                        allowed.isEmpty() ? 'none (final status)' : String.join(new List<String>(allowed), ', ') }));
+                        'Cannot change status from {0} to {1}. Allowed: {2}.',
+                        new List<Object>{ oldStatus, loan.Status__c,
+                                allowed.isEmpty() ? 'none (final status)' : String.join(new List<String>(allowed), ', ') }));
                 continue;
             }
             if (loan.Status__c == LoanStatusMachine.REJECTED && String.isBlank(loan.Decision_Reason__c)) {
                 loan.addError(Loan_Application__c.Decision_Reason__c,
-                    'A decision reason is required when rejecting an application.');
+                        'A decision reason is required when rejecting an application.');
                 continue;
             }
             stampDates(loan);
         }
+    }
+
+    private void enqueueCreditScoring(List<Loan_Application__c> records, Map<Id, Loan_Application__c> oldMap) {
+        Set<Id> toScore = new Set<Id>();
+        for (Loan_Application__c loan : records) {
+            if (loan.Status__c == LoanStatusMachine.SCORING
+                    && oldMap.get(loan.Id).Status__c != LoanStatusMachine.SCORING) {
+                toScore.add(loan.Id);
+            }
+        }
+        if (toScore.isEmpty()) {
+            return;
+        }
+        if (Limits.getQueueableJobs() >= Limits.getLimitQueueableJobs()) {
+            System.debug(LoggingLevel.ERROR, 'Queueable limit reached; credit scoring not queued for ' + toScore);
+            return;
+        }
+        System.enqueueJob(new CreditScoringJob(toScore));
     }
 
     private void stampDates(Loan_Application__c loan) {
