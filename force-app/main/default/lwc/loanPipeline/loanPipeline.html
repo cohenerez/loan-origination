@@ -1,0 +1,196 @@
+<template>
+  <div class="shell">
+    <!-- Hero with KPIs -->
+    <section class="hero">
+      <div class="hero-orb orb-one"></div>
+      <div class="hero-orb orb-two"></div>
+
+      <div class="hero-top">
+        <div>
+          <p class="eyebrow">Loan origination</p>
+          <h1 class="hero-title">Pipeline overview</h1>
+          <p class="hero-sub" data-id="subtitle">{subtitle}</p>
+        </div>
+        <div class="hero-buttons">
+          <button
+            class="icon-button"
+            type="button"
+            title="Refresh"
+            onclick={handleRefresh}
+          >
+            <lightning-icon
+              icon-name="utility:refresh"
+              size="x-small"
+              variant="inverse"
+            ></lightning-icon>
+          </button>
+          <button
+            class="new-button"
+            type="button"
+            onclick={handleNew}
+            data-id="new"
+          >
+            <lightning-icon
+              icon-name="utility:add"
+              size="x-small"
+            ></lightning-icon>
+            <span>New application</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <span class="kpi-label">Open pipeline</span>
+          <span class="kpi-value" data-id="open-amount">
+            <lightning-formatted-number
+              value={openAmount}
+              format-style="currency"
+              maximum-fraction-digits="0"
+            ></lightning-formatted-number>
+          </span>
+          <span class="kpi-hint">{openCountText}</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Awaiting approval</span>
+          <span class="kpi-value" data-id="pending"
+            >{pendingApprovalCount}</span
+          >
+          <span class="kpi-hint">Branch manager or committee</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Approval rate</span>
+          <span class="kpi-value" data-id="approval-rate"
+            >{approvalRateText}</span
+          >
+          <span class="kpi-hint">{decidedText}</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Average credit score</span>
+          <span class="kpi-value" data-id="average-score"
+            >{averageScoreText}</span
+          >
+          <span class="kpi-hint">Across scored applications</span>
+        </div>
+      </div>
+    </section>
+
+    <template lwc:if={error}>
+      <div class="card error-card" role="alert">
+        <lightning-icon
+          icon-name="utility:error"
+          size="small"
+          variant="error"
+        ></lightning-icon>
+        <span>{error}</span>
+      </div>
+    </template>
+
+    <!-- Pipeline by stage -->
+    <section class="card">
+      <header class="card-header">
+        <h2>Pipeline by stage</h2>
+        <span class="hint">Click a stage to filter</span>
+      </header>
+
+      <div class="lp-stage-bar" aria-hidden="true">
+        <template for:each={barSegments} for:item="segment">
+          <span
+            key={segment.status}
+            class="lp-segment"
+            style={segment.style}
+            title={segment.title}
+          ></span>
+        </template>
+      </div>
+
+      <div class="lp-stages">
+        <template for:each={stages} for:item="stage">
+          <button
+            key={stage.status}
+            class={stage.className}
+            type="button"
+            data-status={stage.status}
+            onclick={handleStageClick}
+          >
+            <span class="lp-stage-top">
+              <span class="lp-stage-dot" style={stage.dotStyle}></span>
+              <span class="lp-stage-label">{stage.label}</span>
+            </span>
+            <span class="lp-stage-count">{stage.count}</span>
+            <span class="lp-stage-amount">{stage.amountText}</span>
+          </button>
+        </template>
+      </div>
+    </section>
+
+    <!-- Recent applications -->
+    <section class="card">
+      <header class="card-header">
+        <h2>{tableTitle}</h2>
+        <template lwc:if={selectedStatus}>
+          <button class="clear-filter" type="button" onclick={clearFilter}>
+            <span>Show all</span>
+            <lightning-icon
+              icon-name="utility:close"
+              size="xx-small"
+            ></lightning-icon>
+          </button>
+        </template>
+      </header>
+
+      <template lwc:if={hasRows}>
+        <div class="table" role="table">
+          <div class="row head" role="row">
+            <span role="columnheader">Application</span>
+            <span role="columnheader">Applicant</span>
+            <span role="columnheader" class="num">Amount</span>
+            <span role="columnheader">Status</span>
+            <span role="columnheader">Score</span>
+            <span role="columnheader">Updated</span>
+          </div>
+          <template for:each={rows} for:item="row">
+            <a
+              key={row.id}
+              class="row body"
+              role="row"
+              href="#"
+              data-id={row.id}
+              onclick={handleOpen}
+            >
+              <span class="cell-name" role="cell">{row.name}</span>
+              <span class="cell-muted" role="cell">{row.applicantText}</span>
+              <span class="num cell-strong" role="cell">
+                <lightning-formatted-number
+                  value={row.amount}
+                  format-style="currency"
+                  maximum-fraction-digits="0"
+                ></lightning-formatted-number>
+              </span>
+              <span role="cell"
+                ><span class={row.pillClass}>{row.statusLabel}</span></span
+              >
+              <span role="cell"
+                ><span class={row.scoreClass}>{row.scoreText}</span></span
+              >
+              <span class="cell-muted" role="cell">
+                <lightning-relative-date-time
+                  value={row.lastModifiedTime}
+                ></lightning-relative-date-time>
+              </span>
+            </a>
+          </template>
+        </div>
+      </template>
+      <template lwc:else>
+        <div class="empty-state" data-id="empty">
+          <lightning-icon
+            icon-name="utility:inbox"
+            size="small"
+          ></lightning-icon>
+          <p>{emptyText}</p>
+        </div>
+      </template>
+    </section>
+  </div>
+</template>

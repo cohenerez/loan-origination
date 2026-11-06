@@ -1,13 +1,97 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
-<customMetadataTypeAccesses><enabled>true</enabled><name>Approval_Threshold__mdt</name></customMetadataTypeAccesses>
-<externalCredentialPrincipalAccesses><enabled>true</enabled><externalCredentialPrincipal>Credit_Scoring-Credit_Scoring_Principal</externalCredentialPrincipal></externalCredentialPrincipalAccesses>
+<applicationVisibilities><application>Loan_Origination</application><visible
+    >true</visible></applicationVisibilities>
+<classAccesses><apexClass>CreditScoringHealthCheck</apexClass><enabled
+    >true</enabled></classAccesses>
+<classAccesses><apexClass>LoanApplicationController</apexClass><enabled
+    >true</enabled></classAccesses>
+<classAccesses><apexClass>LoanPipelineController</apexClass><enabled
+    >true</enabled></classAccesses>
+<customMetadataTypeAccesses><enabled>true</enabled><name
+    >Approval_Threshold__mdt</name></customMetadataTypeAccesses>
+<externalCredentialPrincipalAccesses><enabled
+    >true</enabled><externalCredentialPrincipal
+    >Credit_Scoring-Credit_Scoring_Principal</externalCredentialPrincipal></externalCredentialPrincipalAccesses>
 <description>Full access to the loan origination app.</description>
-<fieldPermissions><editable>false</editable><field>Loan_Application__c.Loan_To_Income_Ratio__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>false</editable><field>Loan_Application__c.Total_Documents__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>false</editable><field>Loan_Application__c.Verified_Documents__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Credit_Check__c.Error_Message__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Credit_Check__c.Raw_Response__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Credit_Check__c.Request_Id__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Credit_Check__c.Response_Time_Ms__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Credit_Check__c.Score__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Credit_Check__c.Status__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Amount__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Approval_Level__c</field><readable>true</readable></fieldPermissions>
-<fieldPermissions><editable>true</editable><field>Loan_Application__c.Applicant__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Credit_Score__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Decision_Date__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Decision_Reason__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.External_Id__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Monthly_Income__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Purpose__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Risk_Tier__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Status__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Submitted_Date__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Application__c.Term_Months__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Document__c.Type__c</field><readable>true</readable></fieldPermissions><fieldPermissions><editable>true</editable><field>Loan_Document__c.Verified__c</field><readable>true</readable></fieldPermissions>
+<fieldPermissions><editable>false</editable><field
+    >Loan_Application__c.Loan_To_Income_Ratio__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >false</editable><field
+    >Loan_Application__c.Total_Documents__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >false</editable><field
+    >Loan_Application__c.Verified_Documents__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Credit_Check__c.Error_Message__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Credit_Check__c.Raw_Response__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Credit_Check__c.Request_Id__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Credit_Check__c.Response_Time_Ms__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Credit_Check__c.Score__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Credit_Check__c.Status__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Application__c.Amount__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field
+    >Loan_Application__c.Approval_Level__c</field><readable
+    >true</readable></fieldPermissions>
+<fieldPermissions><editable>true</editable><field
+    >Loan_Application__c.Applicant__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Application__c.Credit_Score__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Application__c.Decision_Date__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field
+    >Loan_Application__c.Decision_Reason__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Application__c.External_Id__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field
+    >Loan_Application__c.Monthly_Income__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Application__c.Purpose__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Application__c.Risk_Tier__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Application__c.Status__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field
+    >Loan_Application__c.Submitted_Date__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Application__c.Term_Months__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Document__c.Type__c</field><readable
+    >true</readable></fieldPermissions><fieldPermissions><editable
+    >true</editable><field>Loan_Document__c.Verified__c</field><readable
+    >true</readable></fieldPermissions>
 <hasActivationRequired>false</hasActivationRequired>
 <label>Loan Officer</label>
-<objectPermissions><allowCreate>true</allowCreate><allowDelete>true</allowDelete><allowEdit>true</allowEdit><allowRead>true</allowRead><modifyAllRecords>false</modifyAllRecords><object>Credit_Check__c</object><viewAllRecords>false</viewAllRecords></objectPermissions><objectPermissions><allowCreate>true</allowCreate><allowDelete>true</allowDelete><allowEdit>true</allowEdit><allowRead>true</allowRead><modifyAllRecords>false</modifyAllRecords><object>Loan_Document__c</object><viewAllRecords>false</viewAllRecords></objectPermissions><objectPermissions><allowCreate>true</allowCreate><allowDelete>true</allowDelete><allowEdit>true</allowEdit><allowRead>true</allowRead><modifyAllRecords>false</modifyAllRecords><object>Loan_Application__c</object><viewAllRecords>false</viewAllRecords></objectPermissions>
-<objectPermissions><allowCreate>true</allowCreate><allowDelete>false</allowDelete><allowEdit>false</allowEdit><allowRead>true</allowRead><modifyAllRecords>false</modifyAllRecords><object>LoanStatusChanged__e</object><viewAllRecords>false</viewAllRecords></objectPermissions>
-<tabSettings><tab>Loan_Application__c</tab><visibility>Visible</visibility></tabSettings>
+<objectPermissions><allowCreate>true</allowCreate><allowDelete
+    >true</allowDelete><allowEdit>true</allowEdit><allowRead
+    >true</allowRead><modifyAllRecords>false</modifyAllRecords><object
+    >Credit_Check__c</object><viewAllRecords
+    >false</viewAllRecords></objectPermissions><objectPermissions><allowCreate
+    >true</allowCreate><allowDelete>true</allowDelete><allowEdit
+    >true</allowEdit><allowRead>true</allowRead><modifyAllRecords
+    >false</modifyAllRecords><object>Loan_Document__c</object><viewAllRecords
+    >false</viewAllRecords></objectPermissions><objectPermissions><allowCreate
+    >true</allowCreate><allowDelete>true</allowDelete><allowEdit
+    >true</allowEdit><allowRead>true</allowRead><modifyAllRecords
+    >false</modifyAllRecords><object>Loan_Application__c</object><viewAllRecords
+    >false</viewAllRecords></objectPermissions>
+<objectPermissions><allowCreate>true</allowCreate><allowDelete
+    >false</allowDelete><allowEdit>false</allowEdit><allowRead
+    >true</allowRead><modifyAllRecords>false</modifyAllRecords><object
+    >LoanStatusChanged__e</object><viewAllRecords
+    >false</viewAllRecords></objectPermissions>
+<tabSettings><tab>Loan_Application__c</tab><visibility
+    >Visible</visibility></tabSettings>
+<tabSettings><tab>Loan_Pipeline</tab><visibility
+    >Visible</visibility></tabSettings>
 </PermissionSet>

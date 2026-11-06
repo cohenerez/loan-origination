@@ -343,6 +343,9 @@ export default class LoanCommandCenter extends LightningElement {
     return (this.view.creditChecks || []).map((check) => ({
       ...check,
       itemClass: `timeline-item check-${(check.status || "unknown").toLowerCase()}`,
+      createdTime: check.createdDate
+        ? new Date(check.createdDate).getTime()
+        : null,
       scoreText:
         check.score === null || check.score === undefined
           ? "—"

@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
     <deploymentStatus>Deployed</deploymentStatus>
-    <description>A customer's loan request, from draft through funding.</description>
+    <description
+  >A customer's loan request, from draft through funding.</description>
     <enableActivities>true</enableActivities>
     <enableBulkApi>true</enableBulkApi>
     <enableHistory>true</enableHistory>
@@ -18,5 +19,27 @@
         <type>AutoNumber</type>
     </nameField>
     <pluralLabel>Loan Applications</pluralLabel>
+    <searchLayouts>
+        <customTabListAdditionalFields
+    >Applicant__c</customTabListAdditionalFields>
+        <customTabListAdditionalFields>Amount__c</customTabListAdditionalFields>
+        <customTabListAdditionalFields>Status__c</customTabListAdditionalFields>
+        <customTabListAdditionalFields
+    >Risk_Tier__c</customTabListAdditionalFields>
+        <lookupDialogsAdditionalFields
+    >Applicant__c</lookupDialogsAdditionalFields>
+        <lookupDialogsAdditionalFields>Amount__c</lookupDialogsAdditionalFields>
+        <lookupDialogsAdditionalFields>Status__c</lookupDialogsAdditionalFields>
+        <searchResultsAdditionalFields
+    >Applicant__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields>Amount__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields>Status__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >Credit_Score__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >Risk_Tier__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >Approval_Level__c</searchResultsAdditionalFields>
+    </searchLayouts>
     <sharingModel>Private</sharingModel>
 </CustomObject>
