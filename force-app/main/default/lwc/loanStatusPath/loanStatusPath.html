@@ -1,0 +1,33 @@
+<template>
+  <nav class="path" aria-label="Application progress">
+    <div class="rail" style={railStyle}>
+      <div class={fillClass} style={fillStyle}></div>
+    </div>
+    <ol class="steps">
+      <template for:each={steps} for:item="step">
+        <li key={step.key} class={step.className} data-step={step.key}>
+          <span class="marker">
+            <template lwc:if={step.isComplete}>
+              <lightning-icon
+                icon-name="utility:check"
+                size="xx-small"
+                variant="inverse"
+              ></lightning-icon>
+            </template>
+            <template lwc:elseif={step.isRejected}>
+              <lightning-icon
+                icon-name="utility:close"
+                size="xx-small"
+                variant="inverse"
+              ></lightning-icon>
+            </template>
+            <template lwc:else>
+              <span class="marker-number">{step.number}</span>
+            </template>
+          </span>
+          <span class="step-label">{step.label}</span>
+        </li>
+      </template>
+    </ol>
+  </nav>
+</template>

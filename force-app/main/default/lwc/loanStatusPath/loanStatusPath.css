@@ -1,0 +1,124 @@
+.path {
+  position: relative;
+  padding: 6px 4px 0;
+}
+
+.rail {
+  position: absolute;
+  top: 22px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e8edf5;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #06b6d4);
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fill-rejected {
+  background: linear-gradient(90deg, #2563eb, #ef4444);
+}
+
+.steps {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.marker {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2px solid #dbe3ef;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.step-complete .marker {
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  border-color: transparent;
+}
+
+.step-complete .step-label {
+  color: #334155;
+}
+
+.step-current .marker {
+  background: #ffffff;
+  border-color: #2563eb;
+  color: #2563eb;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.15);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.step-current .step-label {
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.step-rejected .marker {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  border-color: transparent;
+  box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.15);
+}
+
+.step-rejected .step-label {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.05);
+  }
+}
+
+@media (max-width: 480px) {
+  .step-label {
+    font-size: 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-current .marker,
+  .fill {
+    animation: none;
+    transition: none;
+  }
+}

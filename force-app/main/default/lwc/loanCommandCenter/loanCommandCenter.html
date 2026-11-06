@@ -1,0 +1,329 @@
+<template>
+  <div class="shell">
+    <template lwc:if={isLoading}>
+      <div class="card skeleton">
+        <div class="skeleton-bar wide"></div>
+        <div class="skeleton-bar"></div>
+        <div class="skeleton-bar short"></div>
+      </div>
+    </template>
+
+    <template lwc:elseif={error}>
+      <div class="card error-card" role="alert">
+        <lightning-icon
+          icon-name="utility:error"
+          size="small"
+          variant="error"
+        ></lightning-icon>
+        <span>{error}</span>
+      </div>
+    </template>
+
+    <template lwc:else>
+      <!-- Hero -->
+      <section class="hero">
+        <div class="hero-orb orb-one"></div>
+        <div class="hero-orb orb-two"></div>
+
+        <div class="hero-top">
+          <div class="hero-identity">
+            <p class="eyebrow">Loan application</p>
+            <h1 class="hero-title" data-id="name">{view.name}</h1>
+            <p class="hero-sub">
+              <lightning-icon
+                icon-name="utility:user"
+                size="xx-small"
+                variant="inverse"
+              ></lightning-icon>
+              <span>{applicantText}</span>
+            </p>
+          </div>
+          <div class="hero-badges">
+            <button
+              class={healthChipClass}
+              title={healthTitle}
+              onclick={runHealthCheck}
+              type="button"
+            >
+              <span class="dot"></span>
+              <span>{healthLabel}</span>
+            </button>
+            <span class={statusPillClass} data-id="status"
+              >{view.statusLabel}</span
+            >
+          </div>
+        </div>
+
+        <div class="hero-figures">
+          <div class="figure figure-main">
+            <span class="figure-label">Requested amount</span>
+            <span class="figure-value">
+              <lightning-formatted-number
+                value={view.amount}
+                format-style="currency"
+                maximum-fraction-digits="0"
+              ></lightning-formatted-number>
+            </span>
+          </div>
+          <div class="figure">
+            <span class="figure-label">Term</span>
+            <span class="figure-value small">{termText}</span>
+          </div>
+          <div class="figure">
+            <span class="figure-label">Purpose</span>
+            <span class="figure-value small">{purposeText}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Progress -->
+      <section class="card path-card">
+        <c-loan-status-path status={view.status}></c-loan-status-path>
+      </section>
+
+      <!-- Live scoring banner -->
+      <template lwc:if={isScoring}>
+        <section class="scoring-banner" role="status">
+          <div class="scoring-spinner"></div>
+          <div>
+            <p class="scoring-title">Credit scoring in progress</p>
+            <p class="scoring-sub">
+              Contacting the scoring service. This page updates automatically.
+            </p>
+          </div>
+          <div class="shimmer"></div>
+        </section>
+      </template>
+
+      <!-- Assessment + profile -->
+      <div class="grid">
+        <section class="card">
+          <header class="card-header">
+            <h2>Credit assessment</h2>
+            <span class={tierBadgeClass}>{tierBadgeText}</span>
+          </header>
+          <c-loan-score-gauge
+            score={view.creditScore}
+            tier={view.riskTier}
+          ></c-loan-score-gauge>
+          <dl class="facts">
+            <div class="fact">
+              <dt>Approval level</dt>
+              <dd>{approvalLevelText}</dd>
+            </div>
+            <div class="fact">
+              <dt>Decision</dt>
+              <dd data-id="decision">{decisionText}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="card">
+          <header class="card-header">
+            <h2>Loan profile</h2>
+          </header>
+          <div class="tiles">
+            <div class="tile">
+              <span class="tile-icon icon-blue">
+                <lightning-icon
+                  icon-name="utility:moneybag"
+                  size="x-small"
+                ></lightning-icon>
+              </span>
+              <span class="tile-label">Monthly income</span>
+              <span class="tile-value">
+                <lightning-formatted-number
+                  value={view.monthlyIncome}
+                  format-style="currency"
+                  maximum-fraction-digits="0"
+                ></lightning-formatted-number>
+              </span>
+            </div>
+            <div class="tile">
+              <span class="tile-icon icon-violet">
+                <lightning-icon
+                  icon-name="utility:trending"
+                  size="x-small"
+                ></lightning-icon>
+              </span>
+              <span class="tile-label">Loan-to-income</span>
+              <span class={loanToIncomeClass}>{loanToIncomeText}</span>
+            </div>
+            <div class="tile">
+              <span class="tile-icon icon-teal">
+                <lightning-icon
+                  icon-name="utility:send"
+                  size="x-small"
+                ></lightning-icon>
+              </span>
+              <span class="tile-label">Submitted</span>
+              <span class="tile-value small">
+                <template lwc:if={view.submittedDate}>
+                  <lightning-formatted-date-time
+                    value={view.submittedDate}
+                    month="short"
+                    day="numeric"
+                    year="numeric"
+                  ></lightning-formatted-date-time>
+                </template>
+                <template lwc:else>Not yet</template>
+              </span>
+            </div>
+            <div class="tile">
+              <span class="tile-icon icon-amber">
+                <lightning-icon
+                  icon-name="utility:approval"
+                  size="x-small"
+                ></lightning-icon>
+              </span>
+              <span class="tile-label">Decided</span>
+              <span class="tile-value small">
+                <template lwc:if={view.decisionDate}>
+                  <lightning-formatted-date-time
+                    value={view.decisionDate}
+                    month="short"
+                    day="numeric"
+                    year="numeric"
+                  ></lightning-formatted-date-time>
+                </template>
+                <template lwc:else>Pending</template>
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Actions -->
+      <template lwc:if={hasActions}>
+        <section class="card actions-card">
+          <header class="card-header">
+            <h2>Next steps</h2>
+          </header>
+          <div class="actions">
+            <template for:each={actions} for:item="action">
+              <button
+                key={action.targetStatus}
+                class={action.className}
+                type="button"
+                data-status={action.targetStatus}
+                disabled={busy}
+                onclick={handleAction}
+              >
+                <lightning-icon
+                  icon-name={action.iconName}
+                  size="x-small"
+                  variant={action.iconVariant}
+                ></lightning-icon>
+                <span>{action.label}</span>
+              </button>
+            </template>
+          </div>
+
+          <template lwc:if={pendingAction}>
+            <div class="reason-panel">
+              <lightning-textarea
+                label={reasonLabel}
+                value={reason}
+                onchange={handleReasonChange}
+                placeholder="Explain the decision. The applicant's file keeps this reason."
+                max-length="255"
+                message-when-value-missing="Please enter a reason."
+              ></lightning-textarea>
+              <template lwc:if={reasonError}>
+                <p class="reason-error" data-id="reason-error">{reasonError}</p>
+              </template>
+              <div class="reason-buttons">
+                <button
+                  class="action action-neutral"
+                  type="button"
+                  disabled={busy}
+                  onclick={cancelReason}
+                >
+                  Cancel
+                </button>
+                <button
+                  class="action action-danger"
+                  type="button"
+                  disabled={busy}
+                  onclick={confirmReason}
+                >
+                  Confirm {pendingAction.label}
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <template lwc:if={busy}>
+            <lightning-spinner
+              alternative-text="Saving"
+              size="small"
+            ></lightning-spinner>
+          </template>
+        </section>
+      </template>
+
+      <template lwc:if={isClosed}>
+        <section class={closedClass}>
+          <lightning-icon
+            icon-name={closedIcon}
+            size="small"
+            variant="inverse"
+          ></lightning-icon>
+          <div>
+            <p class="closed-title">{closedTitle}</p>
+            <p class="closed-sub">{closedSubtitle}</p>
+          </div>
+        </section>
+      </template>
+
+      <!-- Scoring history -->
+      <section class="card">
+        <header class="card-header">
+          <h2>Scoring history</h2>
+          <span class="count">{checksCountText}</span>
+        </header>
+        <template lwc:if={hasChecks}>
+          <ol class="timeline">
+            <template for:each={checks} for:item="check">
+              <li key={check.id} class={check.itemClass}>
+                <span class="timeline-dot"></span>
+                <div class="timeline-body">
+                  <div class="timeline-row">
+                    <span class="timeline-status">{check.status}</span>
+                    <span class="timeline-score">{check.scoreText}</span>
+                  </div>
+                  <div class="timeline-meta">
+                    <span>{check.name}</span>
+                    <span class="sep">•</span>
+                    <lightning-relative-date-time
+                      value={check.createdDate}
+                    ></lightning-relative-date-time>
+                    <template lwc:if={check.timeText}>
+                      <span class="sep">•</span>
+                      <span>{check.timeText}</span>
+                    </template>
+                  </div>
+                  <template lwc:if={check.errorMessage}>
+                    <p class="timeline-error">{check.errorMessage}</p>
+                  </template>
+                </div>
+              </li>
+            </template>
+          </ol>
+        </template>
+        <template lwc:else>
+          <div class="empty-state">
+            <lightning-icon
+              icon-name="utility:chart"
+              size="small"
+            ></lightning-icon>
+            <p>
+              No scoring runs yet. Every call to the scoring service appears
+              here.
+            </p>
+          </div>
+        </template>
+      </section>
+    </template>
+  </div>
+</template>

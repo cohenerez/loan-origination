@@ -1,0 +1,91 @@
+.gauge {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.gauge-svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.track,
+.value {
+  fill: none;
+  stroke-width: 14;
+  stroke-linecap: round;
+}
+
+.track {
+  stroke: #e8edf5;
+}
+
+.value {
+  stroke-dasharray: 251.33;
+  animation: draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 251.33;
+  }
+}
+
+.readout {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.score {
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.tier {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.empty {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.empty-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.scale {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 6px;
+  margin-top: -4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .value {
+    animation: none;
+  }
+}

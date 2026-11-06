@@ -1,0 +1,28 @@
+<template>
+  <div class="gauge">
+    <svg class="gauge-svg" viewBox="0 0 200 116" aria-hidden="true">
+      <path class="track" d="M 20 100 A 80 80 0 0 1 180 100"></path>
+      <template lwc:if={hasScore}>
+        <path
+          class="value"
+          d="M 20 100 A 80 80 0 0 1 180 100"
+          style={arcStyle}
+        ></path>
+      </template>
+    </svg>
+    <div class="readout">
+      <template lwc:if={hasScore}>
+        <span class="score" data-id="score">{displayScore}</span>
+        <span class="tier" style={tierStyle} data-id="tier">{tierText}</span>
+      </template>
+      <template lwc:else>
+        <span class="empty" data-id="empty">Not scored yet</span>
+        <span class="empty-hint">Run credit scoring to see the result</span>
+      </template>
+    </div>
+    <div class="scale">
+      <span>300</span>
+      <span>850</span>
+    </div>
+  </div>
+</template>
