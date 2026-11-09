@@ -1,14 +1,14 @@
 # Backend services
 
-| Service                                      | Port | Role                                            |
-| -------------------------------------------- | ---- | ----------------------------------------------- |
-| [credit-scoring](credit-scoring)             | 8080 | REST API Salesforce calls to score applications |
-| [event-bridge](event-bridge)                 | 8081 | Salesforce Pub/Sub API → Kafka                  |
-| [notification-service](notification-service) | 8082 | Kafka → emails to applicants                    |
-| PostgreSQL                                   | 5432 | `scoring` and `notifications` databases         |
-| Kafka (KRaft)                                | 9094 | `loan-events`, `loan-events.DLT`                |
-| Mailpit                                      | 8025 | Inbox for every email sent in development       |
-| Kafka UI                                     | 8090 | Browse topics and messages                      |
+| Service                                      | Port       | Role                                                         |
+| -------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| [credit-scoring](credit-scoring)             | 8080       | REST API Salesforce calls to score applications              |
+| [event-bridge](event-bridge)                 | 8085, 8086 | Salesforce Pub/Sub API → Kafka (2 instances, active/standby) |
+| [notification-service](notification-service) | 8082       | Kafka → emails to applicants                                 |
+| PostgreSQL                                   | 5432       | `scoring`, `notifications` and `bridge` databases            |
+| Kafka (KRaft)                                | 9094       | `loan-events`, `loan-events.DLT`                             |
+| Mailpit                                      | 8025       | Inbox for every email sent in development                    |
+| Kafka UI                                     | 8090       | Browse topics and messages                                   |
 
 ## Run everything
 
