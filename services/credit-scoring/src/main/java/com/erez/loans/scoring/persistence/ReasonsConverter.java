@@ -11,6 +11,8 @@ public class ReasonsConverter implements AttributeConverter<List<String>, String
 
     private static final String SEPARATOR = "\n";
 
+
+
     @Override
     public String convertToDatabaseColumn(List<String> reasons) {
         return reasons == null ? "" : String.join(SEPARATOR, reasons);

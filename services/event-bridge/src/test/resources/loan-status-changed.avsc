@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "LoanStatusChanged__e",
+  "namespace": "com.sforce.eventbus",
+  "fields": [
+    { "name": "CreatedDate", "type": "long" },
+    { "name": "CreatedById", "type": "string" },
+    { "name": "Loan_Id__c", "type": ["null", "string"], "default": null },
+    { "name": "Old_Status__c", "type": ["null", "string"], "default": null },
+    { "name": "New_Status__c", "type": ["null", "string"], "default": null },
+    { "name": "Amount__c", "type": ["null", "double"], "default": null },
+    { "name": "Applicant_Email__c", "type": ["null", "string"], "default": null },
+    { "name": "Event_Uuid__c", "type": ["null", "string"], "default": null }
+  ]
+}

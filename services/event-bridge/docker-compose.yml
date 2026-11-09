@@ -1,0 +1,139 @@
+# The whole backend: PostgreSQL, Kafka, Mailpit, Kafka UI and the three services.
+#
+#   cp .env.example .env    # then fill in the values
+#   docker compose up -d --build
+#
+# Only localhost ports are published. On a server, put a reverse proxy with HTTPS in front of
+# credit-scoring (the only service Salesforce calls) instead of opening ports.
+name: loan-origination
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: scoring
+      POSTGRES_USER: scoring
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-scoring}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scoring -d scoring"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:3.9.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # INTERNAL for containers (kafka:9092), EXTERNAL for services run from the IDE (localhost:9094)
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms512m"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "127.0.0.1:9094:9094"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    restart: unless-stopped
+
+  mailpit:
+    # Catches every email the notification service sends; web inbox at http://localhost:8025
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    restart: unless-stopped
+
+  kafka-ui:
+    # Browse topics and messages at http://localhost:8090
+    image: provectuslabs/kafka-ui:latest
+    environment:
+      KAFKA_CLUSTERS_0_NAME: loan-origination
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "127.0.0.1:8090:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  credit-scoring:
+    build: ./credit-scoring
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/scoring
+      DB_USERNAME: scoring
+      DB_PASSWORD: ${DB_PASSWORD:-scoring}
+      SCORING_API_KEY: ${SCORING_API_KEY:?Set SCORING_API_KEY in .env}
+      SCORING_SIMULATION_ENABLED: ${SCORING_SIMULATION_ENABLED:-false}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  event-bridge:
+    # Two instances, active/standby: the one holding the PostgreSQL advisory lock subscribes.
+    # Stop the active one (docker compose stop) and watch the other take over within seconds.
+    build: ./event-bridge
+    deploy:
+      replicas: 2
+    environment:
+      SF_LOGIN_URL: ${SF_LOGIN_URL:-}
+      SF_CLIENT_ID: ${SF_CLIENT_ID:-}
+      SF_CLIENT_SECRET: ${SF_CLIENT_SECRET:-}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DB_URL: jdbc:postgresql://postgres:5432/bridge
+      DB_USERNAME: scoring
+      DB_PASSWORD: ${DB_PASSWORD:-scoring}
+    ports:
+      - "127.0.0.1:8085-8086:8081" # one host port per instance
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  notification-service:
+    build: ./notification-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/notifications
+      DB_USERNAME: scoring
+      DB_PASSWORD: ${DB_PASSWORD:-scoring}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+    ports:
+      - "127.0.0.1:8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  kafka-data:
