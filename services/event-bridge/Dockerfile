@@ -9,7 +9,7 @@ RUN mvn -q package -DskipTests
 # Runtime stage
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-RUN useradd --system --uid 1001 app && mkdir -p /data && chown app /data
+RUN useradd --system --uid 1001 app
 COPY --from=build /app/target/event-bridge-*.jar app.jar
 USER app
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]

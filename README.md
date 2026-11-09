@@ -1,5 +1,6 @@
 # Loan Origination: Salesforce + Spring Boot
 
+[![CI](https://github.com/cohenerez/loan-origination/actions/workflows/ci.yml/badge.svg)](https://github.com/cohenerez/loan-origination/actions/workflows/ci.yml)
 ![Salesforce](https://img.shields.io/badge/Salesforce-API%2068.0-00A1E0?logo=salesforce&logoColor=white)
 ![Apex](https://img.shields.io/badge/Apex-coverage%2096%25-brightgreen)
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
@@ -258,8 +259,16 @@ Then submit a loan that has an applicant email and follow it in Kafka UI and Mai
 | Credit scoring: engine      | Scoring rules, risk tier boundaries, amortization, determinism                                                                                                                               | JUnit 5                 |
 | Credit scoring: API         | Authentication, validation (RFC 7807), idempotency, 409 on reused request id, history, simulated outage                                                                                      | MockMvc                 |
 | Credit scoring: persistence | Flyway migration, JPA mapping, ordering, unique constraint                                                                                                                                   | `@DataJpaTest`          |
-| Event bridge                | 23 tests: Avro decoding, checkpoint only after the Kafka ack, resume after restart, JDBC checkpoint store, leader election and failover, OAuth session                                       | JUnit 5, `@JdbcTest`    |
+| Event bridge                | 19 tests: Avro decoding, checkpoint only after the Kafka ack, resume after restart, JDBC checkpoint store, leader election and failover, OAuth session                                       | JUnit 5, `@JdbcTest`    |
 | Notification service        | 14 tests: templates, deduplication, skipped and failed sends, end-to-end consumption and dead-lettering on Embedded Kafka                                                                    | JUnit 5, Embedded Kafka |
+
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request:
+
+- **LWC:** ESLint and the Jest tests.
+- **Services:** `mvn verify` for each of the three services, in parallel. Nothing external is needed: H2 replaces PostgreSQL and Embedded Kafka replaces the broker.
+- **Apex (optional):** when the `SF_AUTH_URL` repository secret holds an org's auth URL (`sf org display --verbose`), the deployment is validated and all local Apex tests run, without changing the org.
 
 ---
 
@@ -275,7 +284,7 @@ Then submit a loan that has an applicant email and follow it in Kafka UI and Mai
 - [x] Bridge high availability: PostgreSQL checkpoint and leader election
 - [ ] Agentforce action: "Why is this application stuck?"
 - [ ] Deployment to Oracle Cloud with docker-compose
-- [ ] CI with GitHub Actions (scratch org, Jest and Maven tests)
+- [x] CI with GitHub Actions: ESLint, Jest and Maven tests on every push; Apex validation when an org is connected
 - [ ] Hebrew translation (Custom Labels, Translation Workbench, RTL)
 
 ---

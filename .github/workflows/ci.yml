@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lwc:
+    name: LWC (ESLint + Jest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:unit
+
+  services:
+    name: ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [credit-scoring, event-bridge, notification-service]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+          cache-dependency-path: services/${{ matrix.service }}/pom.xml
+      - run: mvn -B -ntp verify
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/surefire-reports/
+
+  apex:
+    # Optional: runs only when the SF_AUTH_URL repository secret is set.
+    # It validates the deployment and runs all local Apex tests without changing the org.
+    name: Apex (validate + tests)
+    runs-on: ubuntu-latest
+    env:
+      SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+    steps:
+      - name: Skip when the org is not configured
+        if: env.SF_AUTH_URL == ''
+        run: echo "::notice::SF_AUTH_URL is not set; Apex tests skipped"
+      - uses: actions/checkout@v4
+        if: env.SF_AUTH_URL != ''
+      - uses: actions/setup-node@v4
+        if: env.SF_AUTH_URL != ''
+        with:
+          node-version: 22
+      - name: Install Salesforce CLI
+        if: env.SF_AUTH_URL != ''
+        run: npm install --global @salesforce/cli
+      - name: Log in to the org
+        if: env.SF_AUTH_URL != ''
+        run: |
+          echo "$SF_AUTH_URL" > "$RUNNER_TEMP/sf-auth.txt"
+          sf org login sfdx-url --sfdx-url-file "$RUNNER_TEMP/sf-auth.txt" --alias ci
+          rm "$RUNNER_TEMP/sf-auth.txt"
+      - name: Validate deployment and run Apex tests
+        if: env.SF_AUTH_URL != ''
+        run: >
+          sf project deploy validate --source-dir force-app --target-org ci
+          --test-level RunLocalTests --wait 30
