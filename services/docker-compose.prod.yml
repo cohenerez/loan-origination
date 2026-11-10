@@ -1,0 +1,41 @@
+# Server overrides: HTTPS entry point and memory limits.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Only Caddy publishes ports to the internet (80 for the certificate challenge, 443 for HTTPS).
+# Everything else stays on 127.0.0.1; reach Kafka UI and Mailpit through an SSH tunnel.
+services:
+  caddy:
+    image: caddy:2
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST in .env, e.g. 84-13-65-218.sslip.io}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - credit-scoring
+    restart: unless-stopped
+
+  # Without limits every JVM sizes its heap from the whole machine's memory.
+  postgres:
+    mem_limit: 1g
+  kafka:
+    mem_limit: 1g
+  credit-scoring:
+    mem_limit: 768m
+  event-bridge:
+    mem_limit: 768m
+  notification-service:
+    mem_limit: 768m
+  kafka-ui:
+    mem_limit: 512m
+  mailpit:
+    mem_limit: 128m
+
+volumes:
+  caddy-data:
+  caddy-config:

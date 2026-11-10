@@ -27,3 +27,27 @@ docker compose ps           # all services healthy
 5. `curl -s 'localhost:8082/api/v1/notifications?loanId=<record id>'`: the stored notification.
 
 Ports are bound to localhost only. On a server, expose only credit-scoring, behind HTTPS.
+
+## Deploying to a server
+
+On an Ubuntu VM with Docker (an Oracle Cloud Always Free Ampere A1 instance with 2 OCPU and 12 GB
+is enough), `docker-compose.prod.yml` adds [Caddy](https://caddyserver.com) as the only public
+entry point. Caddy gets a Let's Encrypt certificate for `PUBLIC_HOST` and forwards just
+`/api/v1/*` and `/actuator/health` to credit scoring; it also sets memory limits for every container.
+
+```bash
+git clone https://github.com/cohenerez/loan-origination.git
+cd loan-origination/services
+cp .env.example .env    # strong SCORING_API_KEY and DB_PASSWORD, PUBLIC_HOST, SF_* values
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+Open TCP 80 and 443 both in the VCN security list and in the VM's own firewall
+(`iptables` on Oracle's Ubuntu images). Then set the `Credit_Scoring` Named Credential URL to
+`https://<PUBLIC_HOST>` and the External Credential's API key to the server's `SCORING_API_KEY`.
+
+Kafka UI and Mailpit stay on the server's localhost. Reach them through an SSH tunnel:
+
+```bash
+ssh -i ~/.ssh/<key> -L 8090:localhost:8090 -L 8025:localhost:8025 ubuntu@<server-ip>
+```

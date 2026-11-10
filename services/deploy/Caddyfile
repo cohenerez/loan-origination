@@ -1,0 +1,15 @@
+# Public entry point. Caddy gets and renews a Let's Encrypt certificate for PUBLIC_HOST
+# automatically and forwards only what Salesforce needs to the credit scoring service.
+{$PUBLIC_HOST} {
+	encode gzip
+
+	@scoring path /api/v1/* /actuator/health
+	handle @scoring {
+		reverse_proxy credit-scoring:8080
+	}
+
+	# Everything else (other actuator endpoints, probes, scanners) gets a plain 404
+	handle {
+		respond 404
+	}
+}
