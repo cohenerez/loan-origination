@@ -29,7 +29,8 @@ flowchart LR
         APEX --> PE
     end
 
-    subgraph VM["Oracle Cloud VM (docker-compose)"]
+    subgraph VM["Oracle Cloud VM, Ampere ARM (docker-compose)"]
+        CADDY["Caddy<br/>HTTPS, Let's Encrypt"]
         CS["credit-scoring<br/>Spring Boot REST"]
         DB[("PostgreSQL")]
         BR["event-bridge ×2<br/>leader + standby"]
@@ -37,6 +38,7 @@ flowchart LR
         NS["notification-service<br/>Kafka consumer"]
         DLT[["loan-events.DLT"]]
         MAIL["SMTP<br/>(Mailpit in dev)"]
+        CADDY --> CS
         CS --> DB
         BR -. "replay ID checkpoint<br/>advisory lock" .-> DB
         BR --> K --> NS
@@ -45,7 +47,7 @@ flowchart LR
         NS -. "after 3 retries" .-> DLT
     end
 
-    APEX <-- "REST callout<br/>Named Credential" --> CS
+    APEX <-- "HTTPS callout<br/>Named Credential" --> CADDY
     PE -- "Pub/Sub API (gRPC)" --> BR
 ```
 
@@ -76,6 +78,21 @@ The home page of the app is a pipeline dashboard:
 
 ---
 
+## Live deployment
+
+The whole backend runs on an **Oracle Cloud Always Free Ampere A1 VM** (ARM, 2 OCPU, 12 GB,
+Ubuntu) with Docker Compose, and the Salesforce org calls it directly; no tunnel and no laptop involved.
+
+- **One public entry point.** Only [Caddy](services/deploy/Caddyfile) listens on the internet (ports 80 and 443). It gets and renews a Let's Encrypt certificate automatically and forwards just `/api/v1/*` and `/actuator/health` to credit scoring; every other path returns 404.
+- **Everything else is private.** PostgreSQL, Kafka, the bridges, the notification service, Kafka UI and Mailpit listen on the VM's localhost only and are reached through an SSH tunnel.
+- **Defense in depth.** Traffic must pass the VCN security list, the VM's own firewall and then the API key that Salesforce sends from its External Credential.
+- **Memory limits** on every container, so each JVM sizes its heap from its limit instead of the whole machine.
+- **The event bridge runs as two replicas.** Failover was tested on the live system: stopping the leader container made the standby take the PostgreSQL advisory lock and resume the Salesforce subscription within seconds, from the shared replay checkpoint.
+
+Deployment steps are in the [services README](services/README.md#deploying-to-a-server).
+
+---
+
 ## Tech stack
 
 | Area        | Technologies                                                                                                                                            |
@@ -86,7 +103,7 @@ The home page of the app is a pipeline dashboard:
 | Data        | PostgreSQL 17 (one database per service), Flyway migrations                                                                                             |
 | Testing     | Apex tests with `System.runAs` and `HttpCalloutMock`, Jest for LWC, JUnit 5, MockMvc, `@DataJpaTest`, `@JdbcTest`, Embedded Kafka, H2 (PostgreSQL mode) |
 | Tooling     | Salesforce CLI, SFDX source format, IntelliJ IDEA + Illuminated Cloud 2, Docker, docker-compose, Kafka UI, Mailpit, cloudflared, Git                    |
-| Hosting     | Salesforce Developer Edition, Oracle Cloud Always Free VM                                                                                               |
+| Hosting     | Salesforce, Oracle Cloud Always Free Ampere A1 VM, Caddy, Let's Encrypt                                                                                 |
 
 ---
 
@@ -243,7 +260,7 @@ service from the IDE; their defaults point to `localhost`.
 
 ### Connecting Salesforce to the services
 
-1. **Scoring callout:** expose credit scoring with `cloudflared tunnel --url http://localhost:8080` and set the tunnel URL on the `Credit_Scoring` Named Credential in Setup. Set the API key on the `Credit_Scoring` External Credential. Check with `System.debug(CreditScoringHealthCheck.check());` in Execute Anonymous.
+1. **Scoring callout:** set the `Credit_Scoring` Named Credential URL to the server's HTTPS address (see [Live deployment](#live-deployment)); for local development, expose credit scoring with `cloudflared tunnel --url http://localhost:8080` and use the tunnel URL instead. Set the API key on the `Credit_Scoring` External Credential. Check with `System.debug(CreditScoringHealthCheck.check());` in Execute Anonymous.
 2. **Event bridge:** create an External Client App with the client credentials flow and a Run As user, and put its consumer key and secret in `.env`. Details in the [event bridge README](services/event-bridge/README.md).
 
 Then submit a loan that has an applicant email and follow it in Kafka UI and Mailpit.
@@ -283,7 +300,7 @@ Then submit a loan that has an applicant email and follow it in Kafka UI and Mai
 - [x] Event bridge (Pub/Sub API → Kafka) and notification service
 - [x] Bridge high availability: PostgreSQL checkpoint and leader election
 - [ ] Agentforce action: "Why is this application stuck?"
-- [ ] Deployment to Oracle Cloud with docker-compose
+- [x] Deployment to Oracle Cloud (Ampere ARM, Docker Compose, Caddy with Let's Encrypt)
 - [x] CI with GitHub Actions: ESLint, Jest and Maven tests on every push; Apex validation when an org is connected
 - [ ] Hebrew translation (Custom Labels, Translation Workbench, RTL)
 
