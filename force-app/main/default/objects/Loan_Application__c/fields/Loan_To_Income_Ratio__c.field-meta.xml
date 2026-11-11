@@ -1,2 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata"><fullName>Loan_To_Income_Ratio__c</fullName><label>Loan-to-Income Ratio</label><formula>IF(OR(ISBLANK(Monthly_Income__c), Monthly_Income__c = 0), NULL, Amount__c / (Monthly_Income__c * 12))</formula><formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs><precision>18</precision><scale>2</scale><required>false</required><type>Number</type></CustomField>
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Loan_To_Income_Ratio__c</fullName>
+    <externalId>false</externalId>
+    <formula
+  >IF(OR(ISBLANK(Monthly_Income__c), Monthly_Income__c = 0), NULL, Amount__c / (Monthly_Income__c * 12))</formula>
+    <label>Loan-to-Income Ratio</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>2</scale>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
