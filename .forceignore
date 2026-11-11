@@ -19,4 +19,4 @@ node_modules/
 **/tsconfig*.json
 **/*.tsbuildinfo
 **/eslint.config.mjs
-**/graphql.config.yml
+**/graphql.config.yml**/namedCredentials/**
