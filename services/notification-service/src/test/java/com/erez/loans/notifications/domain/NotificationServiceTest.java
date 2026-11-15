@@ -99,7 +99,7 @@ class NotificationServiceTest {
 
     @Test
     void aFailedSendIsRecordedAndRetriedSuccessfully() {
-        LoanStatusEvent event = event("Submitted", "maya@example.com");
+        LoanStatusEvent event = event("Approved", "maya@example.com");
         doThrow(new MailSendException("SMTP down")).when(mailSender).send(any(SimpleMailMessage.class));
 
         assertThatThrownBy(() -> service.handle(event)).isInstanceOf(NotificationDeliveryException.class);

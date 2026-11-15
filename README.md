@@ -37,15 +37,22 @@ flowchart LR
         K[["Kafka<br/>loan-events"]]
         NS["notification-service<br/>Kafka consumer"]
         DLT[["loan-events.DLT"]]
-        MAIL["SMTP<br/>(Mailpit in dev)"]
+        MAIL["Mailpit<br/>(local development)"]
         CADDY --> CS
         CS --> DB
         BR -. "replay ID checkpoint<br/>advisory lock" .-> DB
         BR --> K --> NS
         NS --> DB
-        NS --> MAIL
+        NS -. "dev" .-> MAIL
         NS -. "after 3 retries" .-> DLT
     end
+
+    subgraph OCI["Oracle Cloud services"]
+        EMAIL["OCI Email Delivery<br/>SPF, DKIM, DMARC on erez.tech"]
+    end
+
+    NS -- "SMTP 587, STARTTLS" --> EMAIL
+    EMAIL --> INBOX(["Applicant's inbox"])
 
     APEX <-- "HTTPS callout<br/>Named Credential" --> CADDY
     PE -- "Pub/Sub API (gRPC)" --> BR
@@ -56,7 +63,7 @@ flowchart LR
 1. A loan officer creates a `Loan_Application__c`. The trigger handler enforces the status lifecycle and stamps lifecycle dates.
 2. When the application moves to **Scoring**, a Queueable job calls the credit scoring service through a Named Credential. Every call is recorded as a `Credit_Check__c` audit record.
 3. The score and risk tier are written back, and the application is routed by the thresholds in `Approval_Threshold__mdt`: auto-approval, branch manager, or credit committee.
-4. Every status change publishes `LoanStatusChanged__e` (published after commit). The event bridge forwards it to Kafka, and the notification service emails the applicant at the steps they care about.
+4. Every status change publishes `LoanStatusChanged__e` (published after commit). The event bridge forwards it to Kafka, and the notification service emails the applicant at the steps they care about, through OCI Email Delivery from `loans@erez.tech`.
 
 ---
 
@@ -71,6 +78,11 @@ one email per customer-facing step (internal steps such as Scoring are recorded 
 ![Funded loan in Salesforce](docs/images/loan-record-funded.png)
 
 ![Customer emails in Mailpit](docs/images/mailpit-inbox.png)
+
+On the live system the same emails reach a real inbox, sent by Erez Bank from `loans@erez.tech` and
+authenticated with SPF, DKIM and DMARC:
+
+![Customer emails in Gmail](docs/images/gmail-inbox.png)
 
 The home page of the app is a pipeline dashboard:
 
@@ -87,6 +99,7 @@ Ubuntu) with Docker Compose, and the Salesforce org calls it directly; no tunnel
 - **Everything else is private.** PostgreSQL, Kafka, the bridges, the notification service, Kafka UI and Mailpit listen on the VM's localhost only and are reached through an SSH tunnel.
 - **Defense in depth.** Traffic must pass the VCN security list, the VM's own firewall and then the API key that Salesforce sends from its External Credential.
 - **Memory limits** on every container, so each JVM sizes its heap from its limit instead of the whole machine.
+- **Real email delivery.** The notification service sends through OCI Email Delivery in the same region, so Oracle's block on outbound port 25 doesn't apply and no mail server has to be run on the VM.
 - **The event bridge runs as two replicas.** Failover was tested on the live system: stopping the leader container made the standby take the PostgreSQL advisory lock and resume the Salesforce subscription within seconds, from the shared replay checkpoint.
 
 Deployment steps are in the [services README](services/README.md#deploying-to-a-server).
@@ -95,15 +108,15 @@ Deployment steps are in the [services README](services/README.md#deploying-to-a-
 
 ## Tech stack
 
-| Area        | Technologies                                                                                                                                            |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Salesforce  | Apex (trigger handler, Queueable, callouts), Platform Events, Custom Metadata Types, Flow, Lightning App Builder, LWC, Agentforce, Permission Sets      |
-| Integration | REST + Named / External Credentials, Salesforce Pub/Sub API (gRPC, Avro), OAuth 2.0 client credentials (External Client App), Apache Kafka (KRaft)      |
-| Backend     | Java 21, Spring Boot 3.5, Spring Data JPA, Spring JDBC, Spring Kafka, Spring Mail, Bean Validation, Actuator                                            |
-| Data        | PostgreSQL 17 (one database per service), Flyway migrations                                                                                             |
-| Testing     | Apex tests with `System.runAs` and `HttpCalloutMock`, Jest for LWC, JUnit 5, MockMvc, `@DataJpaTest`, `@JdbcTest`, Embedded Kafka, H2 (PostgreSQL mode) |
-| Tooling     | Salesforce CLI, SFDX source format, IntelliJ IDEA + Illuminated Cloud 2, Docker, docker-compose, Kafka UI, Mailpit, cloudflared, Git                    |
-| Hosting     | Salesforce, Oracle Cloud Always Free Ampere A1 VM, Caddy, Let's Encrypt                                                                                 |
+| Area        | Technologies                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Salesforce  | Apex (trigger handler, Queueable, callouts), Platform Events, Custom Metadata Types, Flow, Lightning App Builder, LWC, Agentforce, Permission Sets                              |
+| Integration | REST + Named / External Credentials, Salesforce Pub/Sub API (gRPC, Avro), OAuth 2.0 client credentials (External Client App), Apache Kafka (KRaft), SMTP via OCI Email Delivery |
+| Backend     | Java 21, Spring Boot 3.5, Spring Data JPA, Spring JDBC, Spring Kafka, Spring Mail, Bean Validation, Actuator                                                                    |
+| Data        | PostgreSQL 17 (one database per service), Flyway migrations                                                                                                                     |
+| Testing     | Apex tests with `System.runAs` and `HttpCalloutMock`, Jest for LWC, JUnit 5, MockMvc, `@DataJpaTest`, `@JdbcTest`, Embedded Kafka, H2 (PostgreSQL mode)                         |
+| Tooling     | Salesforce CLI, SFDX source format, IntelliJ IDEA + Illuminated Cloud 2, Docker, docker-compose, Kafka UI, Mailpit, Cloudflare DNS, cloudflared, Git                            |
+| Hosting     | Salesforce, Oracle Cloud Always Free Ampere A1 VM, Caddy, Let's Encrypt                                                                                                         |
 
 ---
 
@@ -201,6 +214,23 @@ the applicant on Submitted, Pending_Approval, Approved, Rejected and Funded.
 - **Idempotent consumer:** every event is stored by its `eventUuid`, so a redelivered event is never emailed twice.
 - Every outcome is recorded as `SENT`, `SKIPPED` (internal status or no email) or `FAILED`, and exposed at `GET /api/v1/notifications`.
 - Failures are retried 3 times, 2 seconds apart; messages that still fail, or can't be parsed, go to `loan-events.DLT` with the original bytes.
+- **Emails follow transitions, not statuses.** A loan reaches Submitted three ways: the customer submits it (receipt email), a loan officer returns it for changes ("needs a few changes" email), or scoring failed and the system retries (no email). The end-to-end run on the live system is what showed the retry case sending the receipt twice.
+
+---
+
+## Email delivery
+
+Mailpit catches every email in development. On the server the same service sends real email,
+with configuration only (`MAIL_*` in `.env`), through **OCI Email Delivery**:
+
+- **A custom domain**, `erez.tech`, with DNS on Cloudflare.
+- **DKIM:** a CNAME (`loans-2026._domainkey`) points to the key Oracle signs with; receivers verify the signature against it.
+- **SPF:** a single TXT record lists Oracle's sending servers as allowed to send for the domain.
+- **DMARC:** `p=none` for now, so receivers report without rejecting while the setup beds in.
+- **An approved sender**, `loans@erez.tech`, and SMTP credentials for a dedicated OCI user, sent over port 587 with STARTTLS.
+
+A delivered message shows `dkim=pass header.i=@erez.tech`, `spf=pass` and `dmarc=pass` in its
+headers, and Gmail files it under Updates, not spam.
 
 ---
 
@@ -216,6 +246,8 @@ the applicant on Submitted, Pending_Approval, Approved, Rejected and Funded.
 - **At-least-once plus idempotent consumers, instead of exactly-once.** The bridge may deliver an event twice after a crash; the notification service drops duplicates by `eventUuid`. This is simpler and more robust than distributed transactions across Salesforce, Kafka and PostgreSQL.
 - **Leader election with a PostgreSQL advisory lock.** The database is already there, the lock is released automatically when the leader's connection drops, and no ZooKeeper or Kubernetes lease is needed.
 - **A dead-letter topic with an explicit name.** Poison messages never block a partition, keep their original bytes for investigation, and go to `loan-events.DLT` regardless of library defaults.
+- **A relay instead of a mail server.** Running mailcow or Postfix on the VM would need port 25 (blocked by Oracle), reverse DNS and several GB of RAM, and would still start with no sending reputation. A regional relay with SPF and DKIM on our own domain gets to the inbox with configuration only.
+- **The agent explains, Apex decides.** The Agentforce action `Diagnose Loan Application` works out why a loan is stuck in Apex, from the record, its last credit check and a live health check of the scoring service, and returns structured facts. The model only phrases them, so it can't invent a reason that isn't in the data. The query runs in user mode, so the agent never sees more than the user does.
 - **Flyway owns the schema.** Hibernate only validates the mapping (`ddl-auto: validate`), so drift between the code and the database stops the app at startup.
 
 ---
@@ -269,15 +301,15 @@ Then submit a loan that has an applicant email and follow it in Kafka UI and Mai
 
 ## Testing
 
-| Component                   | Tests                                                                                                                                                                                        | Coverage                |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| Apex                        | 7 test classes: transitions, field locking, rejection rules, scoring job with callout mocks, approval routing, controllers, health check, 200-record bulk update; run as a Loan Officer user | 96% org-wide            |
-| LWC                         | 20 Jest tests: record page components and pipeline dashboard                                                                                                                                 | Jest                    |
-| Credit scoring: engine      | Scoring rules, risk tier boundaries, amortization, determinism                                                                                                                               | JUnit 5                 |
-| Credit scoring: API         | Authentication, validation (RFC 7807), idempotency, 409 on reused request id, history, simulated outage                                                                                      | MockMvc                 |
-| Credit scoring: persistence | Flyway migration, JPA mapping, ordering, unique constraint                                                                                                                                   | `@DataJpaTest`          |
-| Event bridge                | 19 tests: Avro decoding, checkpoint only after the Kafka ack, resume after restart, JDBC checkpoint store, leader election and failover, OAuth session                                       | JUnit 5, `@JdbcTest`    |
-| Notification service        | 14 tests: templates, deduplication, skipped and failed sends, end-to-end consumption and dead-lettering on Embedded Kafka                                                                    | JUnit 5, Embedded Kafka |
+| Component                   | Tests                                                                                                                                                                                                                                       | Coverage                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Apex                        | 8 test classes: transitions, field locking, rejection rules, scoring job with callout mocks, approval routing, controllers, health check, the agent action's diagnosis for every status, 200-record bulk update; run as a Loan Officer user | 96% org-wide            |
+| LWC                         | 20 Jest tests: record page components and pipeline dashboard                                                                                                                                                                                | Jest                    |
+| Credit scoring: engine      | Scoring rules, risk tier boundaries, amortization, determinism                                                                                                                                                                              | JUnit 5                 |
+| Credit scoring: API         | Authentication, validation (RFC 7807), idempotency, 409 on reused request id, history, simulated outage                                                                                                                                     | MockMvc                 |
+| Credit scoring: persistence | Flyway migration, JPA mapping, ordering, unique constraint                                                                                                                                                                                  | `@DataJpaTest`          |
+| Event bridge                | 19 tests: Avro decoding, checkpoint only after the Kafka ack, resume after restart, JDBC checkpoint store, leader election and failover, OAuth session                                                                                      | JUnit 5, `@JdbcTest`    |
+| Notification service        | 17 tests: templates and the three ways into Submitted, deduplication, skipped and failed sends, end-to-end consumption and dead-lettering on Embedded Kafka                                                                                 | JUnit 5, Embedded Kafka |
 
 ### Continuous integration
 
@@ -299,8 +331,10 @@ Then submit a loan that has an applicant email and follow it in Kafka UI and Mai
 - [x] LWC record page and pipeline dashboard
 - [x] Event bridge (Pub/Sub API → Kafka) and notification service
 - [x] Bridge high availability: PostgreSQL checkpoint and leader election
-- [ ] Agentforce action: "Why is this application stuck?"
+- [x] Agentforce action "Diagnose Loan Application": why an application is stuck and what happens next (Apex invocable, tested)
+- [ ] Agentforce employee agent topic that uses the action
 - [x] Deployment to Oracle Cloud (Ampere ARM, Docker Compose, Caddy with Let's Encrypt)
+- [x] Real email delivery: OCI Email Delivery on a custom domain with SPF, DKIM and DMARC
 - [x] CI with GitHub Actions: ESLint, Jest and Maven tests on every push; Apex validation when an org is connected
 - [ ] Hebrew translation (Custom Labels, Translation Workbench, RTL)
 

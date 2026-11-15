@@ -1,3 +1,4 @@
+
 package com.erez.loans.notifications.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -13,7 +14,11 @@ class NotificationTemplatesTest {
             new NotificationTemplates(new NotificationProperties("loan-events", "loans@bank.example", "Erez Bank"));
 
     private static LoanStatusEvent event(String newStatus) {
-        return new LoanStatusEvent("u-1", "a01di00001O3s0jAAB", "Scoring", newStatus,
+        return event("Draft", newStatus);
+    }
+
+    private static LoanStatusEvent event(String oldStatus, String newStatus) {
+        return new LoanStatusEvent("u-1", "a01di00001O3s0jAAB", oldStatus, newStatus,
                 new BigDecimal("150000"), "dana@example.com", null, null);
     }
 
@@ -37,6 +42,26 @@ class NotificationTemplatesTest {
         assertThat(templates.forEvent(event("Draft"))).isEmpty();
         assertThat(templates.forEvent(event("Scoring"))).isEmpty();
         assertThat(templates.forEvent(event(null))).isEmpty();
+    }
+
+    @Test
+    void submittingFromDraftConfirmsReceipt() {
+        EmailMessage message = templates.forEvent(event("Draft", "Submitted")).orElseThrow();
+
+        assertThat(message.subject()).isEqualTo("We received your loan application #S0JAAB");
+    }
+
+    @Test
+    void scoringRetryDoesNotRepeatTheReceiptEmail() {
+        assertThat(templates.forEvent(event("Scoring", "Submitted"))).isEmpty();
+    }
+
+    @Test
+    void returnForChangesAsksForUpdatedDetails() {
+        EmailMessage message = templates.forEvent(event("Pending_Approval", "Submitted")).orElseThrow();
+
+        assertThat(message.subject()).isEqualTo("Your loan application #S0JAAB needs a few changes");
+        assertThat(message.body()).contains("loan officer").doesNotContain("score");
     }
 
     @Test

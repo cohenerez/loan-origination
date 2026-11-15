@@ -22,10 +22,7 @@ public class NotificationTemplates {
         String amount = formatAmount(event.amount());
         String reference = reference(event.loanId());
         return Optional.ofNullable(switch (event.newStatus() == null ? "" : event.newStatus()) {
-            case "Submitted" -> new EmailMessage(
-                    "We received your loan application " + reference,
-                    body("Thank you for applying for a loan of " + amount + ". We received your application and"
-                            + " will assess it shortly. Your reference is " + reference + "."));
+            case "Submitted" -> submitted(event.oldStatus(), amount, reference);
             case "Pending_Approval" -> new EmailMessage(
                     "Your loan application " + reference + " is under review",
                     body("Good news: your application for " + amount + " passed our initial credit assessment"
@@ -45,6 +42,25 @@ public class NotificationTemplates {
                             + " account. Thank you for choosing " + bankName + "."));
             default -> null;
         });
+    }
+
+    /**
+     * A loan reaches Submitted in three ways, and only two of them concern the customer:
+     * the customer submits it (from Draft), a loan officer returns it for changes (from Pending_Approval),
+     * or scoring failed and the system will retry (from Scoring), which must not repeat the receipt email.
+     */
+    private EmailMessage submitted(String oldStatus, String amount, String reference) {
+        return switch (oldStatus == null ? "" : oldStatus) {
+            case "", "Draft" -> new EmailMessage(
+                    "We received your loan application " + reference,
+                    body("Thank you for applying for a loan of " + amount + ". We received your application and"
+                            + " will assess it shortly. Your reference is " + reference + "."));
+            case "Pending_Approval" -> new EmailMessage(
+                    "Your loan application " + reference + " needs a few changes",
+                    body("Your loan officer reviewed your application for " + amount + " and needs some updated"
+                            + " details before it can continue. They will contact you shortly."));
+            default -> null;
+        };
     }
 
     private String body(String text) {
