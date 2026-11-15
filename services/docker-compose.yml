@@ -124,8 +124,14 @@ services:
       DB_USERNAME: scoring
       DB_PASSWORD: ${DB_PASSWORD:-scoring}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      MAIL_HOST: mailpit
-      MAIL_PORT: 1025
+      # Mailpit by default; set MAIL_* in .env to deliver through a real SMTP relay
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-loans@erez-bank.example}
     ports:
       - "127.0.0.1:8082:8082"
     depends_on:

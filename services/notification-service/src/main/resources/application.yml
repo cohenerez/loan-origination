@@ -32,8 +32,18 @@ spring:
       properties:
         spring.json.add.type.headers: false
   mail:
+    # Defaults fit Mailpit (no login, no TLS). For real delivery set the MAIL_* variables of an SMTP relay.
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
+      mail.smtp.starttls.required: ${MAIL_STARTTLS:false}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
 
 notifications:
   topic: loan-events
