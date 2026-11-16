@@ -21,7 +21,7 @@ Loan officers create and manage applications in Salesforce. Each application mov
 flowchart LR
     subgraph SF["Salesforce org"]
         UI["Loan app UI<br/>(Lightning, LWC)"]
-        AG["Agentforce<br/>agent actions"]
+        AG["Agentforce<br/>Loan Assistant agent"]
         APEX["Apex service layer<br/>trigger handler, state machine, Queueable"]
         PE["Platform Event<br/>LoanStatusChanged__e"]
         UI --> APEX
@@ -108,15 +108,15 @@ Deployment steps are in the [services README](services/README.md#deploying-to-a-
 
 ## Tech stack
 
-| Area        | Technologies                                                                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Salesforce  | Apex (trigger handler, Queueable, callouts), Platform Events, Custom Metadata Types, Flow, Lightning App Builder, LWC, Agentforce, Permission Sets                              |
-| Integration | REST + Named / External Credentials, Salesforce Pub/Sub API (gRPC, Avro), OAuth 2.0 client credentials (External Client App), Apache Kafka (KRaft), SMTP via OCI Email Delivery |
-| Backend     | Java 21, Spring Boot 3.5, Spring Data JPA, Spring JDBC, Spring Kafka, Spring Mail, Bean Validation, Actuator                                                                    |
-| Data        | PostgreSQL 17 (one database per service), Flyway migrations                                                                                                                     |
-| Testing     | Apex tests with `System.runAs` and `HttpCalloutMock`, Jest for LWC, JUnit 5, MockMvc, `@DataJpaTest`, `@JdbcTest`, Embedded Kafka, H2 (PostgreSQL mode)                         |
-| Tooling     | Salesforce CLI, SFDX source format, IntelliJ IDEA + Illuminated Cloud 2, Docker, docker-compose, Kafka UI, Mailpit, Cloudflare DNS, cloudflared, Git                            |
-| Hosting     | Salesforce, Oracle Cloud Always Free Ampere A1 VM, Caddy, Let's Encrypt                                                                                                         |
+| Area        | Technologies                                                                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Salesforce  | Apex (trigger handler, Queueable, callouts, invocable actions), Platform Events, Custom Metadata Types, Flow, Lightning App Builder, LWC, Agentforce (Agent Script), Permission Sets |
+| Integration | REST + Named / External Credentials, Salesforce Pub/Sub API (gRPC, Avro), OAuth 2.0 client credentials (External Client App), Apache Kafka (KRaft), SMTP via OCI Email Delivery      |
+| Backend     | Java 21, Spring Boot 3.5, Spring Data JPA, Spring JDBC, Spring Kafka, Spring Mail, Bean Validation, Actuator                                                                         |
+| Data        | PostgreSQL 17 (one database per service), Flyway migrations                                                                                                                          |
+| Testing     | Apex tests with `System.runAs` and `HttpCalloutMock`, Jest for LWC, JUnit 5, MockMvc, `@DataJpaTest`, `@JdbcTest`, Embedded Kafka, H2 (PostgreSQL mode)                              |
+| Tooling     | Salesforce CLI, SFDX source format, IntelliJ IDEA + Illuminated Cloud 2, Docker, docker-compose, Kafka UI, Mailpit, Cloudflare DNS, cloudflared, Git                                 |
+| Hosting     | Salesforce, Oracle Cloud Always Free Ampere A1 VM, Caddy, Let's Encrypt                                                                                                              |
 
 ---
 
@@ -125,7 +125,8 @@ Deployment steps are in the [services README](services/README.md#deploying-to-a-
 ```
 loan-origination/
 ├── force-app/main/default/        Salesforce metadata and Apex (SFDX source format)
-│   ├── classes/                   Trigger handler, state machine, scoring job, approval router, controllers, tests
+│   ├── aiAuthoringBundles/        Loan_Assistant Agentforce agent, defined in Agent Script
+│   ├── classes/                   Trigger handler, state machine, scoring job, approval router, agent action, controllers, tests
 │   ├── lwc/                       Record page (command center, score gauge, status path) and pipeline dashboard
 │   ├── triggers/                  One trigger per object, delegating to its handler
 │   ├── objects/                   Custom objects, fields, validation rules, platform event, CMDT
@@ -218,6 +219,44 @@ the applicant on Submitted, Pending_Approval, Approved, Rejected and Funded.
 
 ---
 
+## Agentforce: Loan Assistant
+
+A loan officer opens the Agentforce panel on any page and asks, in plain language, why an
+application isn't moving. The **Loan Assistant** (an Employee Agent) answers from the org's live data.
+
+![Loan Assistant answering in the Lightning panel](docs/images/agentforce-panel.png)
+
+_Asked "Why is LA-000003 stuck?", the agent called the action and answered from the record: the loan is funded and nothing is pending._
+
+| Part             | What it does                                                                 | In this project                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Agent            | The assistant: its name, role and audience                                   | `Loan Assistant`, an Employee Agent for bank staff                                                                                   |
+| Subagents        | Areas of responsibility, each with its own instructions                      | `loan_status`, plus `off_topic` and `ambiguous_question`                                                                             |
+| Router           | Picks the subagent for each question                                         | `agent_router` sends "why is it stuck?" to `loan_status`                                                                             |
+| Action           | What the agent can actually do                                               | `diagnose_loan_application` → the Apex invocable [`LoanDiagnosticsAction`](force-app/main/default/classes/LoanDiagnosticsAction.cls) |
+| Reasoning engine | Reads the question, calls the action, fills its input and phrases the answer | The reply in the panel                                                                                                               |
+| Agent Script     | The agent's definition as code, versioned in git                             | [`Loan_Assistant.agent`](force-app/main/default/aiAuthoringBundles/Loan_Assistant/Loan_Assistant.agent)                              |
+
+**How the diagnosis works.** The action takes a loan number (`LA-000012`) or record Id, reads the
+application and its latest credit check in one user-mode query, and checks each status against a
+time limit: Scoring 10 minutes, Submitted 24 hours, Pending Approval 48 hours, Approved 72 hours
+before funding. It returns structured facts: `stuck`, a summary, the blockers (missing details,
+unverified documents, which approver it waits for, why scoring failed) and the next step. If the
+loan is in Scoring or its last credit check failed, it also runs a live health check of the
+scoring service, so it can tell "the service is down" apart from "the API key was rejected".
+
+- **The model can't invent a reason.** In simulated preview, with mocked actions, the agent made up
+  an underwriter review that doesn't exist. With live actions it answers only from what Apex returned;
+  the instructions require calling the action before answering.
+- **The agent sees what the user sees.** `WITH USER_MODE` applies the user's sharing and field
+  access, and the action is granted through the `Loan_Officer` permission set.
+- **Built as code.** The agent is written in Agent Script and managed with the Salesforce CLI
+  (`sf agent validate`, `preview`, `publish`, `activate`) instead of being clicked together in Setup.
+- **Testable.** The diagnosis is a pure `@TestVisible` method that takes the record, the current
+  time and the health result, so 14 tests cover every status without callouts or waiting.
+
+---
+
 ## Email delivery
 
 Mailpit catches every email in development. On the server the same service sends real email,
@@ -269,6 +308,15 @@ sf apex run test --test-level RunLocalTests --code-coverage --result-format huma
 ```
 
 Open the App Launcher and search for **Loan Applications**.
+
+To add the Loan Assistant (needs an org with Agentforce, such as an Agentforce Developer Edition):
+
+```bash
+sf agent validate authoring-bundle --api-name Loan_Assistant --target-org myOrg
+sf agent publish authoring-bundle --api-name Loan_Assistant --target-org myOrg
+sf agent activate --api-name Loan_Assistant --target-org myOrg
+sf agent preview --api-name Loan_Assistant --use-live-actions --target-org myOrg
+```
 
 ### Backend services
 
@@ -332,7 +380,7 @@ Then submit a loan that has an applicant email and follow it in Kafka UI and Mai
 - [x] Event bridge (Pub/Sub API → Kafka) and notification service
 - [x] Bridge high availability: PostgreSQL checkpoint and leader election
 - [x] Agentforce action "Diagnose Loan Application": why an application is stuck and what happens next (Apex invocable, tested)
-- [ ] Agentforce employee agent topic that uses the action
+- [x] Agentforce employee agent (Loan Assistant), written in Agent Script and published from the CLI
 - [x] Deployment to Oracle Cloud (Ampere ARM, Docker Compose, Caddy with Let's Encrypt)
 - [x] Real email delivery: OCI Email Delivery on a custom domain with SPF, DKIM and DMARC
 - [x] CI with GitHub Actions: ESLint, Jest and Maven tests on every push; Apex validation when an org is connected
