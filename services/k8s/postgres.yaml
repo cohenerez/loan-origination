@@ -40,6 +40,13 @@ spec:
         app: postgres
     spec:
       enableServiceLinks: false
+      # Start directly as the image's postgres user (uid 999). Started as root, the entrypoint
+      # switches user with gosu, which hung at 100% CPU on k3s on the ARM VM before PostgreSQL
+      # printed anything. As postgres the entrypoint skips gosu; fsGroup lets it own the volume.
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
       containers:
         - name: postgres
           image: postgres:17
