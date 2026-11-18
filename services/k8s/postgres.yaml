@@ -40,10 +40,20 @@ spec:
         app: postgres
     spec:
       enableServiceLinks: false
-      # Start directly as the image's postgres user (uid 999). Started as root, the entrypoint
-      # switches user with gosu, which hung at 100% CPU on k3s on the ARM VM before PostgreSQL
-      # printed anything. As postgres the entrypoint skips gosu; fsGroup lets it own the volume.
       securityContext:
+        # PostgreSQL's processes signal each other (checkpoints, new connections, shutdown).
+        # On this VM's kernel (7.0, Ubuntu) the AppArmor profile that k3s's containerd applies,
+        # cri-containerd.apparmor.d, denies those signals: dmesg shows apparmor="DENIED"
+        # operation="signal" towards the peer "cri-containerd.apparmor.d//&unconfined", and
+        # PostgreSQL hangs with "could not signal for checkpoint: Permission denied".
+        # Docker's own profile allows them, which is why Compose works.
+        appArmorProfile:
+          type: Unconfined
+        # Still confined by the runtime's default seccomp filter, and not running as root:
+        seccompProfile:
+          type: RuntimeDefault
+        # The image's postgres user (uid 999). The entrypoint then skips gosu, which needs no
+        # root and was the first process to hang on the denied signals.
         runAsUser: 999
         runAsGroup: 999
         fsGroup: 999
