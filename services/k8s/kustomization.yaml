@@ -1,4 +1,4 @@
-# Whole backend on Kubernetes (k3s on the Oracle Cloud VM). See README.md in this folder.
+# Whole backend on Kubernetes (k3s on the Oracle Cloud VM). See k8s-README.md in this folder.
 #
 #   kubectl apply -k services/k8s
 apiVersion: kustomize.config.k8s.io/v1beta1

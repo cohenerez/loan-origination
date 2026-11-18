@@ -92,17 +92,20 @@ The home page of the app is a pipeline dashboard:
 
 ## Live deployment
 
-The whole backend runs on an **Oracle Cloud Always Free Ampere A1 VM** (ARM, 2 OCPU, 12 GB,
-Ubuntu) with Docker Compose, and the Salesforce org calls it directly; no tunnel and no laptop involved.
+The whole backend runs on **Kubernetes ([k3s](https://k3s.io))** on an **Oracle Cloud Always Free
+Ampere A1 VM** (ARM, 2 OCPU, 12 GB, Ubuntu), and the Salesforce org calls it directly; no tunnel and
+no laptop involved. Docker Compose runs the same stack on a laptop.
 
+- **Kubernetes manifests with Kustomize** in [`services/k8s`](services/k8s): StatefulSets with persistent volumes for PostgreSQL and Kafka, Deployments for the services, secrets from the same `.env` as Compose, and startup, liveness and readiness probes on Spring Boot Actuator.
 - **One public entry point.** Only [Caddy](services/deploy/Caddyfile) listens on the internet (ports 80 and 443). It gets and renews a Let's Encrypt certificate automatically and forwards just `/api/v1/*` and `/actuator/health` to credit scoring; every other path returns 404.
-- **Everything else is private.** PostgreSQL, Kafka, the bridges, the notification service, Kafka UI and Mailpit listen on the VM's localhost only and are reached through an SSH tunnel.
+- **Everything else is private.** PostgreSQL, Kafka, the bridges, the notification service, Kafka UI and Mailpit are cluster-internal services, reached with `kubectl port-forward` over SSH.
 - **Defense in depth.** Traffic must pass the VCN security list, the VM's own firewall and then the API key that Salesforce sends from its External Credential.
-- **Memory limits** on every container, so each JVM sizes its heap from its limit instead of the whole machine.
+- **Memory requests and limits** on every pod, so each JVM sizes its heap from its limit instead of the whole machine.
+- **Least privilege, debugged rather than switched off.** On this kernel, k3s's AppArmor profile blocked the signals PostgreSQL's processes send each other, so it hung without an error. `dmesg` showed the denial; only that pod runs AppArmor-unconfined, still as a non-root user under the default seccomp filter. [The full story](services/k8s/README.md#why-postgresql-is-apparmor-unconfined).
 - **Real email delivery.** The notification service sends through OCI Email Delivery in the same region, so Oracle's block on outbound port 25 doesn't apply and no mail server has to be run on the VM.
-- **The event bridge runs as two replicas.** Failover was tested on the live system: stopping the leader container made the standby take the PostgreSQL advisory lock and resume the Salesforce subscription within seconds, from the shared replay checkpoint.
+- **The event bridge runs as two replicas.** Failover was tested on the live system: stopping the leader made the standby take the PostgreSQL advisory lock and resume the Salesforce subscription within seconds, from the shared replay checkpoint.
 
-Deployment steps are in the [services README](services/README.md#deploying-to-a-server).
+Deployment steps are in the [Kubernetes README](services/k8s/README.md); the move from Compose kept all data and replayed the Salesforce events from the downtime from the saved checkpoint.
 
 ---
 
@@ -115,8 +118,8 @@ Deployment steps are in the [services README](services/README.md#deploying-to-a-
 | Backend     | Java 21, Spring Boot 3.5, Spring Data JPA, Spring JDBC, Spring Kafka, Spring Mail, Bean Validation, Actuator                                                                         |
 | Data        | PostgreSQL 17 (one database per service), Flyway migrations                                                                                                                          |
 | Testing     | Apex tests with `System.runAs` and `HttpCalloutMock`, Jest for LWC, JUnit 5, MockMvc, `@DataJpaTest`, `@JdbcTest`, Embedded Kafka, H2 (PostgreSQL mode)                              |
-| Tooling     | Salesforce CLI, SFDX source format, IntelliJ IDEA + Illuminated Cloud 2, Docker, docker-compose, Kafka UI, Mailpit, Cloudflare DNS, cloudflared, Git                                 |
-| Hosting     | Salesforce, Oracle Cloud Always Free Ampere A1 VM, Caddy, Let's Encrypt                                                                                                              |
+| Tooling     | Salesforce CLI, SFDX source format, IntelliJ IDEA + Illuminated Cloud 2, Docker, docker-compose, kubectl, Kustomize, Kafka UI, Mailpit, Cloudflare DNS, cloudflared, Git             |
+| Hosting     | Salesforce, Kubernetes (k3s) on an Oracle Cloud Always Free Ampere A1 VM, Caddy, Let's Encrypt                                                                                       |
 
 ---
 
@@ -138,6 +141,7 @@ loan-origination/
 │   ├── event-bridge/              Salesforce Pub/Sub API → Kafka, active/standby
 │   ├── notification-service/      Kafka → applicant emails, dead-letter topic
 │   ├── postgres/init/             Creates the scoring, notifications and bridge databases
+│   ├── k8s/                       Kubernetes manifests (k3s, Kustomize) for the live deployment
 │   └── docker-compose.yml         PostgreSQL, Kafka, Mailpit, Kafka UI and the three services
 ├── docs/images/                   Screenshots
 ├── config/                        Scratch org definition
@@ -382,6 +386,7 @@ Then submit a loan that has an applicant email and follow it in Kafka UI and Mai
 - [x] Agentforce action "Diagnose Loan Application": why an application is stuck and what happens next (Apex invocable, tested)
 - [x] Agentforce employee agent (Loan Assistant), written in Agent Script and published from the CLI
 - [x] Deployment to Oracle Cloud (Ampere ARM, Docker Compose, Caddy with Let's Encrypt)
+- [x] Migration to Kubernetes (k3s) on the same VM, with no data loss
 - [x] Real email delivery: OCI Email Delivery on a custom domain with SPF, DKIM and DMARC
 - [x] CI with GitHub Actions: ESLint, Jest and Maven tests on every push; Apex validation when an org is connected
 - [ ] Hebrew translation (Custom Labels, Translation Workbench, RTL)

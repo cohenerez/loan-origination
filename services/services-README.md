@@ -54,5 +54,6 @@ ssh -i ~/.ssh/<key> -L 8090:localhost:8090 -L 8025:localhost:8025 ubuntu@<server
 
 ### On Kubernetes
 
-The same stack also runs on k3s on the same free VM, with Kubernetes manifests in
-[`k8s/`](k8s). See [k8s/README.md](k8s/README.md).
+The live system runs on k3s on the same free VM, with the Kubernetes manifests in
+[`k8s/`](k8s). See [k8s/README.md](k8s/README.md). Docker Compose stays the way to run everything
+on a laptop.
