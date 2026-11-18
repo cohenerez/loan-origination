@@ -1,0 +1,77 @@
+# REST API that Salesforce calls through Caddy. Images are built on the VM: see build-images.sh
+apiVersion: v1
+kind: Service
+metadata:
+  name: credit-scoring
+spec:
+  selector:
+    app: credit-scoring
+  ports:
+    - name: http
+      port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: credit-scoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: credit-scoring
+  template:
+    metadata:
+      labels:
+        app: credit-scoring
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: credit-scoring
+          image: loan-origination/credit-scoring:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/scoring
+            - name: DB_USERNAME
+              value: scoring
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: DB_PASSWORD
+            - name: SCORING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: SCORING_API_KEY
+            - name: SCORING_SIMULATION_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: SCORING_SIMULATION_ENABLED
+                  optional: true
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 36 # up to 3 minutes for the JVM to start on a small VM
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 768Mi

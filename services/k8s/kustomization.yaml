@@ -1,0 +1,20 @@
+# Whole backend on Kubernetes (k3s on the Oracle Cloud VM). See README.md in this folder.
+#
+#   kubectl apply -k services/k8s
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: loan-origination
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - kafka.yaml
+  - mailpit.yaml
+  - kafka-ui.yaml
+  - credit-scoring.yaml
+  - event-bridge.yaml
+  - notification-service.yaml
+  - caddy.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: loan-origination
+    includeSelectors: false

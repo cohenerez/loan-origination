@@ -1,0 +1,125 @@
+# Kafka -> applicant emails. Sends to Mailpit unless MAIL_* values are in the loan-secrets secret.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-mail-defaults
+data:
+  MAIL_HOST: mailpit
+  MAIL_PORT: "1025"
+  MAIL_SMTP_AUTH: "false"
+  MAIL_STARTTLS: "false"
+  MAIL_FROM: loans@erez-bank.example
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - name: http
+      port: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: notification-service
+          image: loan-origination/notification-service:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8082
+          # Defaults first; any MAIL_* key present in loan-secrets (below) overrides them
+          envFrom:
+            - configMapRef:
+                name: notification-mail-defaults
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/notifications
+            - name: DB_USERNAME
+              value: scoring
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: DB_PASSWORD
+            - name: MAIL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: MAIL_HOST
+                  optional: true
+            - name: MAIL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: MAIL_PORT
+                  optional: true
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: MAIL_USERNAME
+                  optional: true
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: MAIL_PASSWORD
+                  optional: true
+            - name: MAIL_SMTP_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: MAIL_SMTP_AUTH
+                  optional: true
+            - name: MAIL_STARTTLS
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: MAIL_STARTTLS
+                  optional: true
+            - name: MAIL_FROM
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: MAIL_FROM
+                  optional: true
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            periodSeconds: 5
+            failureThreshold: 36 # up to 3 minutes for the JVM to start on a small VM
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 768Mi

@@ -1,0 +1,76 @@
+# Salesforce Pub/Sub API -> Kafka. Two replicas: the one holding the PostgreSQL advisory lock
+# subscribes, the other waits as standby (same as deploy.replicas: 2 in docker-compose.yml).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-bridge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: event-bridge
+  template:
+    metadata:
+      labels:
+        app: event-bridge
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: event-bridge
+          image: loan-origination/event-bridge:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/bridge
+            - name: DB_USERNAME
+              value: scoring
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: DB_PASSWORD
+            - name: SF_LOGIN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: SF_LOGIN_URL
+                  optional: true
+            - name: SF_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: SF_CLIENT_ID
+                  optional: true
+            - name: SF_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: loan-secrets
+                  key: SF_CLIENT_SECRET
+                  optional: true
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            periodSeconds: 5
+            failureThreshold: 36 # up to 3 minutes for the JVM to start on a small VM
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 768Mi
