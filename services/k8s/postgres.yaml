@@ -71,6 +71,14 @@ spec:
             - name: init
               mountPath: /docker-entrypoint-initdb.d
               readOnly: true
+          # First start (initdb, init script) and crash recovery can take minutes on the VM's disk.
+          # The startup probe allows up to 5 minutes; liveness only begins after it, so Kubernetes
+          # never kills PostgreSQL in the middle of setup or recovery.
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "scoring", "-d", "scoring"]
+            periodSeconds: 5
+            failureThreshold: 60
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "scoring", "-d", "scoring"]
@@ -78,8 +86,8 @@ spec:
           livenessProbe:
             exec:
               command: ["pg_isready", "-U", "scoring", "-d", "scoring"]
-            initialDelaySeconds: 30
             periodSeconds: 10
+            failureThreshold: 6
           resources:
             requests:
               cpu: 100m
